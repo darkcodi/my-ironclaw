@@ -3,15 +3,13 @@ services:
     image: pgvector/pgvector:pg16-trixie
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ironclaw
-      POSTGRES_USER: ironclaw
-      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
-      PGDATA: /var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=ironclaw
+      - POSTGRES_USER=ironclaw
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    configs:
-      - source: enable-vector
-        target: /docker-entrypoint-initdb.d/01-enable-vector.sql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ironclaw -d ironclaw"]
       interval: 5s
@@ -30,31 +28,109 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://ironclaw:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/ironclaw?sslmode=disable
-      LLM_BACKEND: ${LLM_BACKEND:?openai}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:?}
-      SECRETS_MASTER_KEY: ${SERVICE_BASE64_64_IRONCLAW}
-      SANDBOX_ENABLED: ${SANDBOX_ENABLED:-false}
-      ONBOARD_COMPLETED: "true"
+      # Core app
+      - DATABASE_URL=postgresql://ironclaw:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/ironclaw?sslmode=disable
+      - DATABASE_POOL_SIZE=${DATABASE_POOL_SIZE:-10}
+      - SECRETS_MASTER_KEY=${SERVICE_BASE64_64_IRONCLAW}
+      - ONBOARD_COMPLETED=true
+      - IRONCLAW_IN_DOCKER=true
+      - RUST_LOG=${RUST_LOG:-ironclaw=info}
 
-      GATEWAY_ENABLED: "true"
-      GATEWAY_HOST: 0.0.0.0
-      GATEWAY_PORT: "3000"
-      GATEWAY_AUTH_TOKEN: ${SERVICE_PASSWORD_64_GATEWAY}
+      # Web / gateway
+      - GATEWAY_ENABLED=true
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=3000
+      - GATEWAY_AUTH_TOKEN=${SERVICE_PASSWORD_64_GATEWAY}
+      - HTTP_HOST=0.0.0.0
+      - HTTP_PORT=8080
+      - HTTP_WEBHOOK_SECRET=${SERVICE_PASSWORD_64_WEBHOOK}
 
-      HTTP_HOST: 0.0.0.0
-      HTTP_PORT: "8080"
-      HTTP_WEBHOOK_SECRET: ${SERVICE_PASSWORD_64_WEBHOOK}
+      # Sandbox
+      - SANDBOX_ENABLED=${SANDBOX_ENABLED:-false}
 
-      IRONCLAW_IN_DOCKER: "true"
-      RUST_LOG: ${RUST_LOG:-ironclaw=info}
+      # LLM core
+      - LLM_BACKEND=${LLM_BACKEND:-}
+      - LLM_REQUEST_TIMEOUT_SECS=${LLM_REQUEST_TIMEOUT_SECS:-}
+
+      # Embeddings
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-}
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-}
+
+      # NEAR AI
+      - NEARAI_API_KEY=${NEARAI_API_KEY:-}
+      - NEARAI_MODEL=${NEARAI_MODEL:-}
+      - NEARAI_BASE_URL=${NEARAI_BASE_URL:-}
+      - NEARAI_AUTH_URL=${NEARAI_AUTH_URL:-}
+      - NEARAI_SESSION_TOKEN=${NEARAI_SESSION_TOKEN:-}
+      - NEARAI_SESSION_PATH=${NEARAI_SESSION_PATH:-}
+      - NEARAI_FALLBACK_MODEL=${NEARAI_FALLBACK_MODEL:-}
+      - NEARAI_MAX_RETRIES=${NEARAI_MAX_RETRIES:-}
+
+      # OpenAI-compatible
+      - LLM_MODEL=${LLM_MODEL:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_EXTRA_HEADERS=${LLM_EXTRA_HEADERS:-}
+
+      # OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - LLM_USE_CODEX_AUTH=${LLM_USE_CODEX_AUTH:-}
+      - CODEX_AUTH_PATH=${CODEX_AUTH_PATH:-}
+
+      # Anthropic
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_OAUTH_TOKEN=${ANTHROPIC_OAUTH_TOKEN:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}
+      - ANTHROPIC_CACHE_RETENTION=${ANTHROPIC_CACHE_RETENTION:-}
+
+      # Ollama
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+
+      # MiniMax
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-}
+      - MINIMAX_BASE_URL=${MINIMAX_BASE_URL:-}
+
+      # GitHub Copilot
+      - GITHUB_COPILOT_TOKEN=${GITHUB_COPILOT_TOKEN:-}
+      - GITHUB_COPILOT_MODEL=${GITHUB_COPILOT_MODEL:-}
+      - GITHUB_COPILOT_EXTRA_HEADERS=${GITHUB_COPILOT_EXTRA_HEADERS:-}
+
+      # OpenAI Codex
+      - OPENAI_CODEX_MODEL=${OPENAI_CODEX_MODEL:-}
+      - OPENAI_CODEX_CLIENT_ID=${OPENAI_CODEX_CLIENT_ID:-}
+      - OPENAI_CODEX_AUTH_URL=${OPENAI_CODEX_AUTH_URL:-}
+      - OPENAI_CODEX_API_URL=${OPENAI_CODEX_API_URL:-}
+
+      # Gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-}
+      - GEMINI_CREDENTIALS_PATH=${GEMINI_CREDENTIALS_PATH:-}
+      - GEMINI_API_KEY_AUTH_MECHANISM=${GEMINI_API_KEY_AUTH_MECHANISM:-}
+      - GEMINI_SAFETY_BLOCK_NONE=${GEMINI_SAFETY_BLOCK_NONE:-}
+      - GEMINI_CLI_CUSTOM_HEADERS=${GEMINI_CLI_CUSTOM_HEADERS:-}
+      - GEMINI_TOP_P=${GEMINI_TOP_P:-}
+      - GEMINI_TOP_K=${GEMINI_TOP_K:-}
+      - GEMINI_SEED=${GEMINI_SEED:-}
+      - GEMINI_PRESENCE_PENALTY=${GEMINI_PRESENCE_PENALTY:-}
+      - GEMINI_FREQUENCY_PENALTY=${GEMINI_FREQUENCY_PENALTY:-}
+      - GEMINI_RESPONSE_MIME_TYPE=${GEMINI_RESPONSE_MIME_TYPE:-}
+      - GEMINI_RESPONSE_JSON_SCHEMA=${GEMINI_RESPONSE_JSON_SCHEMA:-}
+      - GEMINI_CACHED_CONTENT=${GEMINI_CACHED_CONTENT:-}
+
+      # LLM resilience / caching
+      - CIRCUIT_BREAKER_THRESHOLD=${CIRCUIT_BREAKER_THRESHOLD:-}
+      - CIRCUIT_BREAKER_RECOVERY_SECS=${CIRCUIT_BREAKER_RECOVERY_SECS:-}
+      - RESPONSE_CACHE_ENABLED=${RESPONSE_CACHE_ENABLED:-}
+      - RESPONSE_CACHE_TTL_SECS=${RESPONSE_CACHE_TTL_SECS:-}
+      - RESPONSE_CACHE_MAX_ENTRIES=${RESPONSE_CACHE_MAX_ENTRIES:-}
+
     volumes:
       - ironclaw_home:/home/ironclaw
-
-configs:
-  enable-vector:
-    content: |
-      CREATE EXTENSION IF NOT EXISTS vector;
 
 volumes:
   postgres_data:
