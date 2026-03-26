@@ -132,6 +132,12 @@ services:
 
     volumes:
       - ironclaw_home:/home/ironclaw
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
   postgres_data:

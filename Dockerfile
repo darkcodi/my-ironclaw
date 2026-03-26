@@ -18,7 +18,7 @@ RUN cargo build --release --bin ironclaw
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates libssl3 bash \
+    ca-certificates libssl3 bash curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/ironclaw /usr/local/bin/ironclaw
@@ -31,6 +31,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
 USER ironclaw
 WORKDIR /home/ironclaw
 
-EXPOSE 3000
+EXPOSE 3000 8080
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
