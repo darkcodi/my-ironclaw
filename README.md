@@ -1,52 +1,26 @@
-# ironclaw-compose
+# ironclaw-coolify
 
-Docker Compose setup for IronClaw with PostgreSQL and pgvector.
+IronClaw + PostgreSQL + pgvector for Coolify.
 
-## Files
+## Deploy
 
-- `Dockerfile` builds IronClaw from a pinned upstream git ref
-- `docker-compose.yml` starts IronClaw and Postgres
-- `docker-entrypoint.sh` writes `~/.ironclaw/.env` and starts IronClaw + Caddy
-- `Caddyfile` proxies the public port to the internal app port
-- `postgres/init/01-enable-vector.sql` enables pgvector on first database init
-
-## Quick start
-
-1. Copy the example env file
-
-    cp .env.example .env
-
-2. Edit `.env` and set these values
-
-    - `OPENAI_API_KEY`
-    - `POSTGRES_PASSWORD`
-    - `SECRETS_MASTER_KEY`
-    - `GATEWAY_AUTH_TOKEN`
-    - `HTTP_WEBHOOK_SECRET`
-
-3. Start the stack
-
-    docker compose up --build -d
-
-4. Open the app
-
-    http://localhost:8080
-
-5. Log in with your `GATEWAY_AUTH_TOKEN`
+1. Create a new resource in Coolify from this repo
+2. Choose the **Docker Compose** build pack
+3. Assign your domain to the `ironclaw` service
+4. Set `OPENAI_API_KEY`
+5. Deploy
 
 ## Notes
 
-- Public app: `http://localhost:8080`
-- Internal gateway runs on `127.0.0.1:3000` inside the container
-- Webhook server runs on `0.0.0.0:8081` inside the container
-- Postgres is internal only
-- pgvector is initialized automatically on first database creation
+- No local `.env` file is needed
+- Postgres stays internal to the stack
+- Coolify generates the database password and app secrets automatically
+- IronClaw is exposed on internal port `3000`
 
-## Logs
+## Optional variables
 
-    docker compose logs -f ironclaw
-    docker compose logs -f db
-
-## Reset
-
-    docker compose down -v
+- `IRONCLAW_REF` default: `v0.20.0`
+- `IRONCLAW_REPO` default: `https://github.com/nearai/ironclaw.git`
+- `LLM_BACKEND` default: `openai`
+- `SANDBOX_ENABLED` default: `false`
+- `RUST_LOG` default: `ironclaw=info`
