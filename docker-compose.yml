@@ -1,49 +1,60 @@
 services:
-  db:
+  postgres:
     image: pgvector/pgvector:pg16-trixie
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ironclaw
+      POSTGRES_USER: ironclaw
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    configs:
+      - source: enable-vector
+        target: /docker-entrypoint-initdb.d/01-enable-vector.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U ironclaw -d ironclaw"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
 
   ironclaw:
     build:
       context: .
+      dockerfile: Dockerfile
       args:
-        IRONCLAW_REPO: ${IRONCLAW_REPO}
-        IRONCLAW_REF: ${IRONCLAW_REF}
+        IRONCLAW_REPO: ${IRONCLAW_REPO:-https://github.com/nearai/ironclaw.git}
+        IRONCLAW_REF: ${IRONCLAW_REF:-v0.20.0}
     restart: unless-stopped
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      PORT: 8080
-      HTTP_HOST: 0.0.0.0
-      HTTP_PORT: 8081
-      HTTP_WEBHOOK_SECRET: ${HTTP_WEBHOOK_SECRET}
+      DATABASE_URL: postgresql://ironclaw:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/ironclaw?sslmode=disable
+      LLM_BACKEND: ${LLM_BACKEND:?openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?}
+      SECRETS_MASTER_KEY: ${SERVICE_BASE64_64_IRONCLAW}
+      SANDBOX_ENABLED: ${SANDBOX_ENABLED:-false}
       ONBOARD_COMPLETED: "true"
-      SANDBOX_ENABLED: ${SANDBOX_ENABLED}
+
       GATEWAY_ENABLED: "true"
-      GATEWAY_HOST: 127.0.0.1
-      GATEWAY_PORT: 3000
-      GATEWAY_AUTH_TOKEN: ${GATEWAY_AUTH_TOKEN}
-    ports:
-      - "8080:8080"
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: "3000"
+      GATEWAY_AUTH_TOKEN: ${SERVICE_PASSWORD_64_GATEWAY}
+
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: "8080"
+      HTTP_WEBHOOK_SECRET: ${SERVICE_PASSWORD_64_WEBHOOK}
+
+      IRONCLAW_IN_DOCKER: "true"
+      RUST_LOG: ${RUST_LOG:-ironclaw=info}
     volumes:
       - ironclaw_home:/home/ironclaw
+
+configs:
+  enable-vector:
+    content: |
+      CREATE EXTENSION IF NOT EXISTS vector;
 
 volumes:
   postgres_data:
