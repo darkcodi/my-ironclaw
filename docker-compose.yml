@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16-trixie
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       - POSTGRES_DB=ironclaw
@@ -9,7 +11,6 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ironclaw -d ironclaw"]
       interval: 5s
